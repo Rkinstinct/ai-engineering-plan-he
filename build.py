@@ -12,6 +12,7 @@ extra = """
 .nt{border-right:4px solid #4a90d9;background:#4a90d90d;border-radius:8px;padding:10px 14px;margin:12px 0;font-size:.92rem;line-height:1.7;color:#cdd3da}
 .ver{background:#5fbf8a14;border:1px solid #2f6f4a;border-radius:10px;padding:10px 14px;margin:8px 0 14px;font-size:.9rem;line-height:1.65}
 .tb{overflow-x:auto}.tb table{border-collapse:collapse;width:100%;font-size:.9rem}.tb th,.tb td{border:1px solid #24282f;padding:8px 10px;text-align:right;vertical-align:top}.tb th{background:#111317}
+.sm{color:#9aa0a8;font-size:.85rem}
 .card p{line-height:1.75}.ch details summary{cursor:pointer;color:#9aa0a8;font-size:.9rem;margin-top:14px}
 """
 pre = pre.replace('</style>', extra + '</style>')
@@ -53,7 +54,7 @@ for w in (1,2,3,4):
     body.append(f'<section class="section" id="w{w}"><div class="wrap"><h2 class="weekt">{e(WT[w])}</h2>' + ''.join(chapter(c) for c in chs if c['week']==w) + '</div></section>')
 setup = ''.join(f'<li>{e(s)}</li>' for s in I['setup'])
 sched = ''.join(f'<li>{e(s)}</li>' for s in SCHED)
-ctoc = ''.join(f'<li><a class="src" href="#c{c["id"]}">פרק {c["id"]}: {e(c["title"])}</a> <span class="note">({e(c["hours"])})</span></li>' for c in chs)
+ctoc = ''.join(f'<li><a class="src" href="#c{c["id"]}">פרק {c["id"]}: {e(c["title"])}</a> <span class="sm"> · {e(c["hours"])}</span></li>' for c in chs)
 mid = f'''<main id="main"><div class="hero"><div class="wrap"><div class="eyebrow">AI ENGINEERING ROADMAP 2026 · מדריך עצמאי של 4 שבועות</div><h1>תכנית חודש ל-AI Engineering</h1>
 <p class="lead">תשעה פרקים, ארבעה שבועות. כל הלימוד בתוך הדף: הסבר, מקרה שימוש, קוד להעתקה, פלט צפוי ותרגיל. הנתונים בפרויקטים נמשכים מהרשת, אבל אין שום חומר קריאה חיצוני.</p>
 <div class="box"><p><strong>הנחות:</strong> {e(I['assume'])}</p></div>
