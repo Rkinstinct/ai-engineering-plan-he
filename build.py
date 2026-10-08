@@ -11,6 +11,7 @@ css = open('base.css').read() + """
 .res a,.src{color:#F7931A;text-decoration:none;word-break:break-word}.res li{direction:rtl}
 .note{color:#9aa0a8;font-size:.9rem}.weekt{margin-top:40px}
 .toc{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0}.toc a{border:1px solid #24282f;border-radius:999px;padding:6px 14px;font-size:.85rem;color:#9aa0a8;text-decoration:none}
+.code{direction:ltr;text-align:left;background:#0b0c0f;border:1px solid #24282f;border-radius:10px;padding:12px;overflow-x:auto;font-size:.82rem;line-height:1.5;white-space:pre;font-family:ui-monospace,Menlo,Consolas,monospace}
 .box{background:#111317;border:1px solid #24282f;border-radius:14px;padding:16px;margin:14px 0}
 """
 P = json.load(open('plan.json'))
@@ -23,11 +24,19 @@ def topic(t):
 <p>{e(t['learn'])}</p><h4>מה עושים, מפגש אחר מפגש</h4><ul>{days}</ul>
 <h4>מקורות חינמיים</h4>{res(t['res'])}
 <div class="proj"><p class="lbl">פרויקט: {e(p['name'])}</p><p><span class="lbl">נתונים אמיתיים:</span> {e(p['data'])}</p><p><span class="lbl">מה בונים:</span> {e(p['build'])}</p><p><span class="lbl">מה מתקבל:</span> {e(p['out'])}</p><p><span class="lbl">איך זה מוכיח את היכולת:</span> {e(p['proof'])}</p></div></article>'''
+def guide():
+    g = P['guide']
+    st = ''
+    for x in g['steps']:
+        c = f'<pre class="code"><code>{e(x["code"])}</code></pre>' if x['code'] else ''
+        st += f'<h4>{e(x["h"])}</h4><p>{e(x["p"])}</p>{c}'
+    return f'<article class="card" id="mcp"><h3>{e(g["title"])}</h3><p class="hrs">{e(g["where"])}</p><p>{e(g["what"])}</p>{st}<h4>מקורות</h4>{res(g["res"])}</article>'
 WT = {1:"שבוע 1: יסודות וחיפוש סמנטי",2:"שבוע 2: RAG וסוכנים",3:"שבוע 3: פרודקשן, הערכה והסקה",4:"שבוע 4: פרויקט מסכם ולמידה מתמשכת"}
 body = []; toc = []
 for w in (1,2,3,4):
     toc.append(f'<a href="#w{w}">{e(WT[w])}</a>')
-    body.append(f'<section class="section" id="w{w}"><div class="wrap"><h2 class="weekt">{e(WT[w])}</h2>' + ''.join(topic(t) for t in T if t['week']==w) + '</div></section>')
+    body.append(f'<section class="section" id="w{w}"><div class="wrap"><h2 class="weekt">{e(WT[w])}</h2>' + ''.join(topic(t) + (guide() if t['id']==4 else '') for t in T if t['week']==w) + '</div></section>')
+toc.insert(2,'<a href="#mcp">מדריך MCP</a>')
 setup = ''.join(f'<li>{e(s)}</li>' for s in I['setup'])
 page = f'''<!DOCTYPE html>
 <html dir="rtl" lang="he"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1" name="viewport"/><meta content="#030304" name="theme-color"/><meta content="תכנית עבודה לחודש: תשעת נושאי מפת הדרכים של AI Engineering 2026, עם פרויקט על נתוני אמת לכל נושא" name="description"/><title>תכנית חודש ל-AI Engineering 2026 | DATA&amp;AI</title><link href="https://fonts.googleapis.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet"/><style>{css}</style></head><body>
