@@ -1,54 +1,68 @@
 #!/usr/bin/env python3
-"""Reads plan.json and writes index.html (static, Hebrew RTL). Run: python3 build.py"""
-import json, html
+"""Builds index.html from chNN.py chapter files + intro.json. Run: python3 build.py (needs old_index.html as shell)."""
+import json, html, importlib
 e = html.escape
-css = open('base.css').read() + """
-.card{background:var(--card,#111317);border:1px solid #24282f;border-radius:16px;padding:20px;margin:16px 0}
-.card h3{margin:0 0 6px;font-size:1.2rem}.hrs{color:#F7931A;font-weight:600;font-size:.9rem;margin:0 0 10px}
-.card h4{margin:16px 0 6px;font-size:1rem;color:#fff}.card ol,.card ul{padding-right:20px}.card li{margin:7px 0;line-height:1.65}
-.proj{border:1px solid #F7931A55;border-radius:12px;padding:14px;margin-top:14px;background:#F7931A0d}
-.proj p{margin:6px 0}.lbl{color:#F7931A;font-weight:600}
-.res a,.src{color:#F7931A;text-decoration:none;word-break:break-word}.res li{direction:rtl}
-.note{color:#9aa0a8;font-size:.9rem}.weekt{margin-top:40px}
-.toc{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0}.toc a{border:1px solid #24282f;border-radius:999px;padding:6px 14px;font-size:.85rem;color:#9aa0a8;text-decoration:none}
-.code{direction:ltr;text-align:left;background:#0b0c0f;border:1px solid #24282f;border-radius:10px;padding:12px;overflow-x:auto;font-size:.82rem;line-height:1.5;white-space:pre;font-family:ui-monospace,Menlo,Consolas,monospace}
-.box{background:#111317;border:1px solid #24282f;border-radius:14px;padding:16px;margin:14px 0}
+shell = open('index.html').read()  # the previous build is the page shell (head, css, footer)
+pre = shell[:shell.index('<main')]; post = shell[shell.index('</main>'):]
+import re; pre = re.sub(r'\n\.out\{.*?</style>', '</style>', pre, flags=re.S)
+extra = """
+.out{direction:ltr;text-align:left;background:#0b0c0f;border:1px solid #2f6f4a;border-radius:10px;padding:12px;overflow-x:auto;font-size:.82rem;line-height:1.5;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,Menlo,Consolas,monospace;margin:6px 0 14px;color:#c9f0d8}
+.olbl,.clbl{font-size:.78rem;color:#9aa0a8;margin:12px 0 3px;direction:ltr;text-align:left}.olbl{color:#5fbf8a}
+.ex{border-right:4px solid #F7931A;background:#F7931A0d;border-radius:8px;padding:10px 14px;margin:10px 0;line-height:1.7}
+.nt{border-right:4px solid #4a90d9;background:#4a90d90d;border-radius:8px;padding:10px 14px;margin:12px 0;font-size:.92rem;line-height:1.7;color:#cdd3da}
+.ver{background:#5fbf8a14;border:1px solid #2f6f4a;border-radius:10px;padding:10px 14px;margin:8px 0 14px;font-size:.9rem;line-height:1.65}
+.tb{overflow-x:auto}.tb table{border-collapse:collapse;width:100%;font-size:.9rem}.tb th,.tb td{border:1px solid #24282f;padding:8px 10px;text-align:right;vertical-align:top}.tb th{background:#111317}
+.card p{line-height:1.75}.ch details summary{cursor:pointer;color:#9aa0a8;font-size:.9rem;margin-top:14px}
 """
-P = json.load(open('plan.json'))
-I = P['intro']; T = P['topics']
-def res(rs): return '<ul class="res">' + ''.join(f'<li><a href="{e(r["u"])}" rel="noopener" target="_blank">{e(r["t"])}</a></li>' for r in rs) + '</ul>'
-def topic(t):
-    p = t['proj']
-    days = ''.join(f'<li>{e(d)}</li>' for d in t['days'])
-    return f'''<article class="card" id="t{t['id']}"><h3>נושא {t['id']}: {e(t['title'])}</h3><p class="hrs">{e(t['hours'])}</p>
-<p>{e(t['learn'])}</p><h4>מה עושים, מפגש אחר מפגש</h4><ul>{days}</ul>
-<h4>מקורות חינמיים</h4>{res(t['res'])}
-<div class="proj"><p class="lbl">פרויקט: {e(p['name'])}</p><p><span class="lbl">נתונים אמיתיים:</span> {e(p['data'])}</p><p><span class="lbl">מה בונים:</span> {e(p['build'])}</p><p><span class="lbl">מה מתקבל:</span> {e(p['out'])}</p><p><span class="lbl">איך זה מוכיח את היכולת:</span> {e(p['proof'])}</p></div></article>'''
-def guide():
-    g = P['guide']
-    st = ''
-    for x in g['steps']:
-        c = f'<pre class="code"><code>{e(x["code"])}</code></pre>' if x['code'] else ''
-        st += f'<h4>{e(x["h"])}</h4><p>{e(x["p"])}</p>{c}'
-    return f'<article class="card" id="mcp"><h3>{e(g["title"])}</h3><p class="hrs">{e(g["where"])}</p><p>{e(g["what"])}</p>{st}<h4>מקורות</h4>{res(g["res"])}</article>'
-WT = {1:"שבוע 1: יסודות וחיפוש סמנטי",2:"שבוע 2: RAG וסוכנים",3:"שבוע 3: פרודקשן, הערכה והסקה",4:"שבוע 4: פרויקט מסכם ולמידה מתמשכת"}
+pre = pre.replace('</style>', extra + '</style>')
+_C = json.load(open('content.json'))
+I = _C['intro']
+chs = _C['chapters']
+
+def block(b):
+    k, t = b['k'], b['t']
+    if k == 'h': return f'<h4>{e(t)}</h4>'
+    if k == 'p': return f'<p>{e(t)}</p>'
+    if k == 'code':
+        lab = f'<div class="clbl">{e(b["n"])}</div>' if b.get('n') else ''
+        return f'{lab}<pre class="code"><code>{e(t)}</code></pre>'
+    if k == 'out': return f'<div class="olbl">פלט (מהרצה אמיתית, כמוצג)</div><pre class="out">{e(t)}</pre>'
+    if k == 'ex': return f'<div class="ex"><strong>תרגיל</strong> {e(t.split(":",1)[1].strip() if ":" in t[:12] else t)}</div>'
+    if k == 'ul': return '<ul>' + ''.join(f'<li>{e(x)}</li>' for x in t) + '</ul>'
+    if k == 'tbl':
+        h = ''.join(f'<th>{e(c)}</th>' for c in t[0])
+        r = ''.join('<tr>' + ''.join(f'<td>{e(c)}</td>' for c in row) + '</tr>' for row in t[1:])
+        return f'<div class="tb"><table><tr>{h}</tr>{r}</table></div>'
+    if k == 'note': return f'<div class="nt">{e(t)}</div>'
+    raise ValueError(k)
+
+def chapter(c):
+    p = c['proj']
+    src = ''.join(f'<li><a class="src" href="{e(u)}" rel="noopener" target="_blank">{e(t)}</a></li>' for t, u in c['src'])
+    return f'''<article class="card ch" id="c{c['id']}"><h3>פרק {c['id']}: {e(c['title'])}</h3><p class="hrs">{e(c['hours'])}</p>
+<div class="ver"><strong>מה נבדק בפועל:</strong> {e(c['verified'])}</div>
+{''.join(block(b) for b in c['blocks'])}
+<div class="proj"><p class="lbl">פרויקט הפרק: {e(p['name'])}</p><p><span class="lbl">נתונים אמיתיים:</span> {e(p['data'])}</p><p><span class="lbl">הוכחה שזה עובד:</span> {e(p['proof'])}</p></div>
+<details><summary>מקורות לציטוט (לא קריאת חובה, כל החומר כבר בפרק)</summary><ul class="res">{src}</ul></details></article>'''
+
+WT = {1:"שבוע 1: יסודות וחיפוש סמנטי",2:"שבוע 2: RAG, סוכנים ו-MCP",3:"שבוע 3: פרודקשן, הערכה ועלויות",4:"שבוע 4: פרויקט גמר ולמידה מתמשכת"}
+SCHED = ["בכל שבוע: חמישה מפגשים של שעה בימי חול ומפגש אחד של כ-5 שעות בסוף שבוע. כל שעה כוללת קריאה של חלק בפרק, הרצה של הקוד והתחלה של התרגיל.","הפרקים נכתבו כך שאפשר לעבוד איתם בלי לצאת מהדף. הקוד מועתק כמו שהוא, והפלט שמופיע אחריו הוא מה שאמור להתקבל."]
 body = []; toc = []
 for w in (1,2,3,4):
     toc.append(f'<a href="#w{w}">{e(WT[w])}</a>')
-    body.append(f'<section class="section" id="w{w}"><div class="wrap"><h2 class="weekt">{e(WT[w])}</h2>' + ''.join(topic(t) + (guide() if t['id']==4 else '') for t in T if t['week']==w) + '</div></section>')
-toc.insert(2,'<a href="#mcp">מדריך MCP</a>')
+    body.append(f'<section class="section" id="w{w}"><div class="wrap"><h2 class="weekt">{e(WT[w])}</h2>' + ''.join(chapter(c) for c in chs if c['week']==w) + '</div></section>')
 setup = ''.join(f'<li>{e(s)}</li>' for s in I['setup'])
-page = f'''<!DOCTYPE html>
-<html dir="rtl" lang="he"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1" name="viewport"/><meta content="#030304" name="theme-color"/><meta content="תכנית עבודה לחודש: תשעת נושאי מפת הדרכים של AI Engineering 2026, עם פרויקט על נתוני אמת לכל נושא" name="description"/><title>תכנית חודש ל-AI Engineering 2026 | DATA&amp;AI</title><link href="https://fonts.googleapis.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet"/><style>{css}</style></head><body>
-<header class="top"><div class="wrap"><a class="brand" href="https://rkinstinct.github.io/data-ai-hub/">DATA<span style="color:#F7931A">&amp;</span>AI <b>/ תכנית חודש</b></a></div></header>
-<main id="main"><div class="hero"><div class="wrap"><div class="eyebrow">AI ENGINEERING ROADMAP 2026 · תכנית של 4 שבועות</div><h1>תכנית חודש ל-AI Engineering</h1>
-<p class="lead">תשעה נושאים, ארבעה שבועות, ופרויקט אחד על נתוני אמת לכל נושא. הפרויקטים נשרשרים למאגר מסכם אחד.</p>
+sched = ''.join(f'<li>{e(s)}</li>' for s in SCHED)
+ctoc = ''.join(f'<li><a class="src" href="#c{c["id"]}">פרק {c["id"]}: {e(c["title"])}</a> <span class="note">({e(c["hours"])})</span></li>' for c in chs)
+mid = f'''<main id="main"><div class="hero"><div class="wrap"><div class="eyebrow">AI ENGINEERING ROADMAP 2026 · מדריך עצמאי של 4 שבועות</div><h1>תכנית חודש ל-AI Engineering</h1>
+<p class="lead">תשעה פרקים, ארבעה שבועות. כל הלימוד בתוך הדף: הסבר, מקרה שימוש, קוד להעתקה, פלט צפוי ותרגיל. הנתונים בפרויקטים נמשכים מהרשת, אבל אין שום חומר קריאה חיצוני.</p>
 <div class="box"><p><strong>הנחות:</strong> {e(I['assume'])}</p></div>
 <div class="box"><p><strong>הכנה (חצי שעה, לפני מפגש 1):</strong></p><ul>{setup}</ul></div>
 <div class="box"><p><strong>איך הכול מתחבר:</strong> {e(I['chain'])}</p></div>
-<p class="note">{e(I['resources_src'])}</p>
+<div class="box"><p><strong>איך עובדים עם המדריך:</strong></p><ul>{sched}</ul></div>
+<div class="box"><p><strong>תוכן הפרקים:</strong></p><ul>{ctoc}</ul></div>
+<p class="note">בכל פרק מסומן מה הורץ ונבדק בפועל בעת הכתיבה (8.10.2026) ומה לא הורץ. קטעים שלא הורצו מסומנים כך במפורש. תיעוד משתנה, ולכן אם פקודה לא עובדת, גרסת התיעוד הנוכחית קובעת.</p>
 <div class="toc">{''.join(toc)}</div></div></div>
-{''.join(body)}</main>
-<footer><div class="wrap"><span>מבוסס על מפת הדרכים AI Engineering Roadmap 2026. כל המקורות ציבוריים וחינמיים.</span></div><p class="rights-line" style="text-align:center;margin:18px auto 0;padding:0 16px;font-size:.92em;opacity:.9;width:100%">© כל הזכויות שמורות לראובן קזורר</p></footer></body></html>'''
-open('index.html','w').write(page)
-print('built', len(T), 'topics', len(page), 'bytes')
+{''.join(body)}'''
+open('index.html','w').write(pre + mid + post)
+print('built', len(chs), 'chapters', len(pre+mid+post), 'bytes')
