@@ -1,0 +1,450 @@
+{
+ "intro": {
+  "assume": "הנחות התכנית: כ-10 שעות בשבוע, בסך הכול כ-40 שעות בחודש (חמישה מפגשים של שעה בימי חול ומפגש אחד של 5 שעות בסוף שבוע, כל שבוע). עבודה על מחשב נייד רגיל עם Docker, ללא GPU וללא כרטיס אשראי. 40 שעות מספיקות להקיף את תשעת הנושאים ולהוציא פרויקט קטן שעובד מכל אחד, לא להגיע לשליטה עמוקה. התכנית בנויה כך שהפרויקטים נשרשרים לפרויקט מסכם אחד.",
+  "setup": [
+   "מחשב עם Python 3.11 ומעלה, Git, Docker Desktop ו-uv להתקנת סביבות.",
+   "חשבון GitHub ציבורי למאגרי הפרויקטים (כבר קיים). מאגר אחד בשם ai-research-radar יצטבר לאורך החודש.",
+   "Ollama מותקן עם מודל קטן: ollama pull qwen2.5:3b (גרסאות 0.5b, 1.5b ו-3b קיימות בספריית Ollama). זה מודל השפה בכל הפרויקטים, ללא מפתח API וללא עלות.",
+   "קובץ LOG.md במאגר: בסוף כל מפגש שורה אחת על מה נבנה, מה נכשל, ומה נמדד."
+  ],
+  "chain": "שרשרת הפרויקטים: שער ל-arXiv (1) מזין חיפוש סמנטי (2) שמזין מערכת RAG (3) שהופכת לכלי של סוכן (4), ואחריהם אריזה ו-CI (5), הערכה וניטור (6) ואופטימיזציית הסקה (7). הפרויקט המסכם (8) מחבר הכול, ו-(9) מגדיר איך לשמור על הרמה אחרי החודש.",
+  "resources_src": "כל הקישורים נבדקו ב-8.10.2026 והחזירו עמוד תקין. תיעוד משתנה, ולכן אם פקודה לא עובדת, הגרסה הנוכחית בתיעוד קובעת."
+ },
+ "topics": [
+  {
+   "id": 1,
+   "week": 1,
+   "title": "יסודות: Python ו-API ברמת פרודקשן",
+   "hours": "3 שעות (מפגשים 1-3)",
+   "learn": "אתה חזק ב-Python, לכן ההתמקדות היא בפרקטיקות שמבדילות סקריפט משירות: סכמות ולידציה, לקוח HTTP עם timeout ו-retry, מטמון, בדיקות ולינטר.",
+   "days": [
+    "מפגש 1 (שעה): uv init, מבנה פרויקט עם src ו-tests, ruff להרצה אחת. קרא את מדריך FastAPI עד Request Body, ואת עמוד ה-API של arXiv עם פורמט ה-Atom שלו.",
+    "מפגש 2 (שעה): כתוב ב-FastAPI נקודת קצה GET /papers?query=...&max=... שקוראת ל-arXiv, מפענחת את ה-Atom ומחזירה מודל Pydantic (id, title, summary, authors, published, categories). הוסף timeout ו-retry עם backoff, ומטמון בזיכרון עם TTL של שעה.",
+    "מפגש 3 (שעה): כתוב בדיקות pytest שמדמות את התשובה של arXiv (בלי קריאת רשת), בדיקה לכשל רשת ובדיקה לפרמטר לא תקין. כוון לכיסוי של הנתיבים המרכזיים, והרץ ruff בכל commit."
+   ],
+   "res": [
+    {
+     "t": "מדריך FastAPI",
+     "u": "https://fastapi.tiangolo.com/tutorial/"
+    },
+    {
+     "t": "תיעוד Pydantic",
+     "u": "https://docs.pydantic.dev/latest/"
+    },
+    {
+     "t": "pytest: תחילת עבודה",
+     "u": "https://docs.pytest.org/en/stable/getting-started.html"
+    },
+    {
+     "t": "uv",
+     "u": "https://docs.astral.sh/uv/"
+    },
+    {
+     "t": "ruff",
+     "u": "https://docs.astral.sh/ruff/"
+    },
+    {
+     "t": "מדריך ה-API של arXiv",
+     "u": "https://info.arxiv.org/help/api/index.html"
+    },
+    {
+     "t": "תנאי השימוש ב-API של arXiv",
+     "u": "https://info.arxiv.org/help/api/tou.html"
+    }
+   ],
+   "proj": {
+    "name": "arxiv-gateway: שער FastAPI מאומת למאמרים",
+    "data": "arXiv API הציבורי (export.arxiv.org/api/query), חינמי וללא מפתח. תנאי השימוש מבקשים לא יותר מבקשה אחת כל שלוש שניות ולהשתמש בחיבור יחיד, ולכן המטמון ומגבילי הקצב הם חלק מהפרויקט ולא קישוט.",
+    "build": "שירות FastAPI שמקבל חיפוש, מכבד את מגבלת הקצב של arXiv, מחזיר JSON מאומת בסכמה, ומשמש בהמשך כמקור הנתונים של כל שאר הפרויקטים.",
+    "out": "מאגר עם שירות רץ מקומית, מסמך OpenAPI אוטומטי ב-/docs, וחבילת בדיקות ירוקה.",
+    "proof": "מוכיח שאתה כותב קוד אינטגרציה שעומד בחוזה של ספק חיצוני (קצב, תקלות, סכמה), לא רק קורא ל-API. בדיקה: הרצה של 20 חיפושים ברצף לא שוברת את מגבלת שלוש השניות."
+   }
+  },
+  {
+   "id": 2,
+   "week": 1,
+   "title": "אינטליגנציה סמנטית: Embeddings וחיפוש וקטורי",
+   "hours": "7 שעות (מפגשים 4-6)",
+   "learn": "מה זה embedding, למה דמיון קוסינוס עובד, ההבדל בין חיפוש מדויק (brute force) לאינדקס מקורב, ומה בוחרים בין בסיס וקטורי מקומי לתוסף של Postgres.",
+   "days": [
+    "מפגש 4 (שעה): קרא את דף ה-semantic search של sentence-transformers ואת רשימת המודלים המאומנים שלו. הרץ במחברת: קידוד של 20 משפטים, מטריצת דמיון וחיפוש ידני.",
+    "מפגש 5 (שעה): כתוב סקריפט שמושך דרך השער שלך כ-5,000 תקצירים מקטגוריות cs.AI ו-cs.CL (בקצב המותר, בכמה הרצות), שומר אותם בקובץ parquet או JSON.",
+    "מפגש 6 (5 שעות): (א) קידוד כל התקצירים עם all-MiniLM-L6-v2, ושמירת המטריצה. (ב) חיפוש brute-force עם numpy כקו בסיס. (ג) טעינה ל-Qdrant במצב מקומי (qdrant-client בלי שרת) עם אינדקס HNSW. (ד) מדידה: זמן שאילתה ו-recall@10 של Qdrant מול ה-brute force על 100 שאילתות. (ה) סעיף קריאה בלבד: מה pgvector מוסיף (SQL לצד וקטורים) ומתי זה עדיף."
+   ],
+   "res": [
+    {
+     "t": "sentence-transformers: חיפוש סמנטי",
+     "u": "https://www.sbert.net/examples/applications/semantic-search/README.html"
+    },
+    {
+     "t": "sentence-transformers: מודלים מאומנים",
+     "u": "https://www.sbert.net/docs/sentence_transformer/pretrained_models.html"
+    },
+    {
+     "t": "המודל all-MiniLM-L6-v2",
+     "u": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2"
+    },
+    {
+     "t": "Qdrant: quickstart",
+     "u": "https://qdrant.tech/documentation/quickstart/"
+    },
+    {
+     "t": "qdrant-client: מצב מקומי",
+     "u": "https://github.com/qdrant/qdrant-client"
+    },
+    {
+     "t": "pgvector",
+     "u": "https://github.com/pgvector/pgvector"
+    },
+    {
+     "t": "Chroma (חלופה)",
+     "u": "https://docs.trychroma.com/"
+    },
+    {
+     "t": "קורס LLM של Hugging Face",
+     "u": "https://huggingface.co/learn/llm-course/chapter1/1"
+    }
+   ],
+   "proj": {
+    "name": "חיפוש סמנטי על 5,000 מאמרי AI",
+    "data": "תקצירי arXiv בקטגוריות cs.AI ו-cs.CL, דרך השער מפרויקט 1.",
+    "build": "אינדקס וקטורי עם ממשק חיפוש (פונקציה וגם נקודת קצה /search בשער), ודוח קצר של זמן ודיוק מול brute force.",
+    "out": "notebook או סקריפט שמדפיס טבלת מדידה, ונקודת קצה שמחזירה את 10 המאמרים הקרובים לשאילתה חופשית.",
+    "proof": "מוכיח הבנה של embeddings מעבר לקריאה לספרייה: אתה יודע להראות מה המחיר של אינדקס מקורב (recall) מול מה שהוא חוסך (זמן). דוגמה לבדיקה: השאילתה 'reducing hallucinations in retrieval' מחזירה מאמרים רלוונטיים שאינם מכילים את המילים עצמן."
+   }
+  },
+  {
+   "id": 3,
+   "week": 2,
+   "title": "מערכות RAG",
+   "hours": "5 שעות (מפגשים 1-2 ושלוש שעות ממפגש 6)",
+   "learn": "שרשרת RAG מלאה: חלוקה למקטעים, אחזור, בניית פרומפט עם ציטוטים, ותשובה של מודל מקומי. הדגש הוא על הפרדה בין איכות האחזור לאיכות הייצור, כי זה מה שתמדוד בנושא 6.",
+   "days": [
+    "מפגש 1 (שעה): קרא את מדריך ה-RAG של LangChain ואת מדריך ה-RAG של LlamaIndex, והשווה: איפה כל אחד מחביא החלטות (גודל מקטע, חפיפה, top-k). החלט לכתוב את הליבה בעצמך ולהשתמש בספרייה רק לדברים משעממים.",
+    "מפגש 2 (שעה): משוך 600 מסמכים מה-API של Federal Register (חיפוש 'artificial intelligence', נכון ל-8.10.2026 יש כ-1,600 תוצאות), עם שדות כותרת, תקציר, תאריך, סוכנות וקישור לטקסט המלא.",
+    "מפגש 6, שלוש שעות: חלוקה למקטעים של 300-500 מילים עם חפיפה קטנה, הטמעה ושמירה ב-Qdrant, אחזור top-5, ופרומפט שמחייב לצטט מזהה מסמך. הפעל מול qwen2.5:3b ב-Ollama. כתוב 30 שאלות עם תשובת זהב ומסמך מקור, ומדוד hit-rate של האחזור (האם המסמך הנכון בתוך top-5)."
+   ],
+   "res": [
+    {
+     "t": "LangChain: מדריך RAG",
+     "u": "https://python.langchain.com/docs/tutorials/rag/"
+    },
+    {
+     "t": "LlamaIndex: RAG",
+     "u": "https://docs.llamaindex.ai/en/stable/understanding/rag/"
+    },
+    {
+     "t": "Federal Register API",
+     "u": "https://www.federalregister.gov/developers/documentation/api/v1"
+    },
+    {
+     "t": "Ollama: qwen2.5",
+     "u": "https://ollama.com/library/qwen2.5"
+    },
+    {
+     "t": "Ragas (להערכה בנושא 6)",
+     "u": "https://docs.ragas.io/en/stable/"
+    }
+   ],
+   "proj": {
+    "name": "שאלות ותשובות מצוטטות על רגולציית AI בארה״ב",
+    "data": "Federal Register API: מסמכים רשמיים של הממשל האמריקאי, חינמי וללא מפתח (למשל חיפוש documents.json עם conditions[term]=artificial intelligence).",
+    "build": "CLI ונקודת קצה /ask שמחזירה תשובה עם ציטוטים (כותרת, תאריך, קישור) לכל טענה, ומסרבת לענות כשהאחזור חלש.",
+    "out": "שירות RAG רץ, קובץ 30 שאלות עם תשובות זהב, ומספר hit-rate@5 מתועד.",
+    "proof": "מוכיח שאתה יודע להפריד כשל אחזור מכשל יצירה. אם hit-rate נמוך, הבעיה במקטעים או בהטמעה. אם גבוה והתשובה שגויה, הבעיה בפרומפט או במודל. הציטוטים מאפשרים לבדוק כל טענה במקור."
+   }
+  },
+  {
+   "id": 4,
+   "week": 2,
+   "title": "סוכנים ותזמור",
+   "hours": "5 שעות (מפגשים 3-5 ושעתיים ממפגש 6)",
+   "learn": "לולאת סוכן (תכנון, קריאה לכלי, תצפית), תזמור של כמה סוכנים מתמחים, והגבלות בטיחות בסיסיות: תקציב צעדים, כלים מורשים בלבד ותנאי עצירה. בנוסף: חשיפת הכלים שלך כשרת MCP.",
+   "days": [
+    "מפגש 3 (שעה): קרא את המבוא של smolagents (מה זה סוכן ומתי לא כדאי) ואת מבוא LangGraph. בחר אחד לפרויקט, והמלצה: LangGraph לגרף מפורש של סוכנים.",
+    "מפגש 4 (שעה): בנה שרת MCP קטן בעזרת מדריך build-server ו-Python SDK, שחושף שני כלים: search_papers (השער שלך) ו-ask_regulation (ה-RAG מנושא 3).",
+    "מפגש 5 (שעה): כתוב כלי שלישי שמושך מה-API של Hacker News (topstories ו-item) את הכתבות הבולטות שמזכירות AI.",
+    "מפגש 6, שעתיים: גרף של שלושה סוכנים: מתכנן (מפרק שאלה לתתי-משימות), חוקר (משתמש בכלים) וכותב (מרכיב סיכום עם מקורות). הוסף תקציב של 8 צעדים לכל ריצה, ורישום של כל קריאה לכלי."
+   ],
+   "res": [
+    {
+     "t": "smolagents: מה זה סוכן",
+     "u": "https://huggingface.co/docs/smolagents/conceptual_guides/intro_agents"
+    },
+    {
+     "t": "LangGraph",
+     "u": "https://langchain-ai.github.io/langgraph/"
+    },
+    {
+     "t": "LangGraph: מדריך מבוא",
+     "u": "https://langchain-ai.github.io/langgraph/tutorials/introduction/"
+    },
+    {
+     "t": "MCP: מבוא",
+     "u": "https://modelcontextprotocol.io/docs/getting-started/intro"
+    },
+    {
+     "t": "MCP: בניית שרת",
+     "u": "https://modelcontextprotocol.io/docs/develop/build-server"
+    },
+    {
+     "t": "MCP Python SDK",
+     "u": "https://github.com/modelcontextprotocol/python-sdk"
+    },
+    {
+     "t": "Hacker News API",
+     "u": "https://github.com/HackerNews/API"
+    }
+   ],
+   "proj": {
+    "name": "סוכן סיכום שבועי: מה קרה השבוע ב-AI",
+    "data": "שלושה מקורות חיים: arXiv (דרך השער), Hacker News API (חינמי וללא מפתח) ו-Federal Register (דרך ה-RAG).",
+    "build": "גרף רב-סוכנים שמקבל נושא (למשל 'agent evaluation') ומחזיר תדריך Markdown עם מקורות, ואת רישום הצעדים לכל ריצה.",
+    "out": "סקריפט שמפיק תדריך, שרת MCP עם שלושה כלים שאפשר לחבר ללקוח MCP, ויומן ריצה.",
+    "proof": "מוכיח שליטה בשלושה דברים: תזמור (מי עושה מה ומתי), שימוש בכלים עם סכמות, ובקרה (תקציב צעדים ותנאי עצירה). בדיקה: מקרה שבו הכלי נכשל והסוכן עוצר בצורה מסודרת ולא בלולאה."
+   }
+  },
+  {
+   "id": 5,
+   "week": 3,
+   "title": "MLOps והנדסת פרודקשן",
+   "hours": "3 שעות (מפגשים 1-3)",
+   "learn": "הדרך מ-notebook לשירות שניתן לשחזר: מעקב ניסויים, קונטיינר, CI אוטומטי ותשתית כקוד. ללא ענן: Terraform עם ספק Docker מקומי.",
+   "days": [
+    "מפגש 1 (שעה): הורד קובץ אחד של Yellow Taxi מדף ה-TLC, אמן מודל רגרסיה פשוט של משך נסיעה (scikit-learn), ורשום ריצות ב-MLflow (פרמטרים, מדדים, מודל).",
+    "מפגש 2 (שעה): כתוב Dockerfile לשירות ניבוי ב-FastAPI, ו-docker-compose שמרים אותו יחד עם MLflow. עבור על Dockerfile reference לפני הכתיבה.",
+    "מפגש 3 (שעה): GitHub Actions: ruff, pytest ובניית התמונה בכל push. הוסף תשתית כקוד: קובץ Terraform עם ספק Docker (kreuzwerker/docker) שמרים את הקונטיינר מקומית, בעקבות המדריך של HashiCorp."
+   ],
+   "res": [
+    {
+     "t": "Made With ML",
+     "u": "https://madewithml.com/"
+    },
+    {
+     "t": "MLflow: תחילת עבודה",
+     "u": "https://mlflow.org/docs/latest/getting-started/"
+    },
+    {
+     "t": "Docker: get started",
+     "u": "https://docs.docker.com/get-started/"
+    },
+    {
+     "t": "Dockerfile reference",
+     "u": "https://docs.docker.com/reference/dockerfile/"
+    },
+    {
+     "t": "Docker Compose",
+     "u": "https://docs.docker.com/compose/"
+    },
+    {
+     "t": "GitHub Actions",
+     "u": "https://docs.github.com/en/actions"
+    },
+    {
+     "t": "Terraform: Docker tutorial",
+     "u": "https://developer.hashicorp.com/terraform/tutorials/docker-get-started"
+    },
+    {
+     "t": "ספק Terraform ל-Docker",
+     "u": "https://registry.terraform.io/providers/kreuzwerker/docker/latest/docs"
+    },
+    {
+     "t": "נתוני TLC",
+     "u": "https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page"
+    }
+   ],
+   "proj": {
+    "name": "שירות ניבוי משך נסיעת מונית, עם CI ותשתית כקוד",
+    "data": "NYC TLC Trip Record Data: קבצי parquet חודשיים ציבוריים של Yellow Taxi (למשל yellow_tripdata_2026-01.parquet, שקיים בדף נכון ל-8.10.2026).",
+    "build": "צינור מלא: אימון עם מעקב ב-MLflow, שירות FastAPI בקונטיינר, CI ב-GitHub Actions, והרמה מקומית באמצעות Terraform.",
+    "out": "מאגר שבו git push מריץ בדיקות ובונה תמונה, ו-terraform apply מרים שירות שעונה ל-/predict.",
+    "proof": "מוכיח שמודל שלך ניתן לשחזור ולפריסה חוזרת: מי שמשכפל את המאגר מקבל את אותה תוצאה בפקודה אחת. הקבצים הם גם נתוני הבסיס של בדיקת הסחיפה בנושא 6."
+   }
+  },
+  {
+   "id": 6,
+   "week": 3,
+   "title": "הערכה, ניטור ובטיחות",
+   "hours": "4 שעות (מפגשים 4-5 ושעתיים ממפגש 6)",
+   "learn": "שלוש שאלות שונות: האם המערכת נכונה (הערכה), האם הנתונים השתנו (סחיפה), והאם היא הוגנת ובטוחה (הטיה והתקפות). לכל אחת כלי ומדד.",
+   "days": [
+    "מפגש 4 (שעה): סחיפה. הורד את קובץ ינואר ופברואר 2026 של Yellow Taxi, והרץ דוח Data Drift של Evidently בין החודשים על המאפיינים של מודל פרויקט 5. כתוב פסקה: האם הסחיפה מצדיקה אימון מחדש.",
+    "מפגש 5 (שעה): הטיה. טען את מערך Adult (UCI) דרך fairlearn.datasets.fetch_adult, אמן סיווג פשוט, והשתמש ב-MetricFrame של Fairlearn כדי להשוות דיוק ושיעור בחירה לפי מגדר. נסה שיטת הקלה אחת וכתוב מה היא עלתה בדיוק.",
+    "מפגש 6, שעתיים: הערכת RAG. הרץ את 30 השאלות מפרויקט 3 דרך Ragas או Promptfoo (faithfulness וrelevancy), והוסף 10 שאלות תקיפה: הוראות מוסתרות בתוך מסמך אחזור (prompt injection) ובקשות לצאת מהנושא. בדוק מול רשימת OWASP Top 10 ל-LLM מה המערכת שלך חשופה אליו."
+   ],
+   "res": [
+    {
+     "t": "Evidently: Data Drift preset",
+     "u": "https://docs.evidentlyai.com/metrics/preset_data_drift"
+    },
+    {
+     "t": "Evidently: quickstart ל-ML",
+     "u": "https://docs.evidentlyai.com/quickstart_ml"
+    },
+    {
+     "t": "Fairlearn",
+     "u": "https://fairlearn.org/"
+    },
+    {
+     "t": "Fairlearn: הערכת הוגנות",
+     "u": "https://fairlearn.org/main/user_guide/assessment/index.html"
+    },
+    {
+     "t": "Ragas",
+     "u": "https://docs.ragas.io/en/stable/"
+    },
+    {
+     "t": "Promptfoo",
+     "u": "https://www.promptfoo.dev/docs/intro/"
+    },
+    {
+     "t": "Promptfoo: red teaming",
+     "u": "https://www.promptfoo.dev/docs/red-team/"
+    },
+    {
+     "t": "OWASP Top 10 ל-LLM",
+     "u": "https://owasp.org/www-project-top-10-for-large-language-model-applications/"
+    },
+    {
+     "t": "NIST AI RMF",
+     "u": "https://www.nist.gov/itl/ai-risk-management-framework"
+    }
+   ],
+   "proj": {
+    "name": "חבילת הערכה ובטיחות: סחיפה, הוגנות ואיכות RAG",
+    "data": "TLC Yellow Taxi (ינואר מול פברואר 2026), UCI Adult (דרך Fairlearn) וקובץ 30 השאלות שלך מעל Federal Register.",
+    "build": "שלושה דוחות בתיקיית reports במאגר, וסקריפט אחד (make eval) שמריץ אותם ומפיק סיכום של עמוד אחד.",
+    "out": "דוח סחיפה בפורמט HTML, טבלת פערי הוגנות, וטבלת מדדי RAG לפני ואחרי התקפות.",
+    "proof": "מוכיח שאתה לא עוצר ב'עובד אצלי': לכל מערכת יש מדד, ספי החלטה והוכחה שהיא מתנהגת מול קלט עוין. אתה מציג גם ממצא שלילי אחד באמת (למשל תקיפה שהצליחה) ואת התיקון."
+   }
+  },
+  {
+   "id": 7,
+   "week": 3,
+   "title": "הסקה מתקדמת ואופטימיזציית עלות",
+   "hours": "3 שעות (שלוש שעות אחרונות במפגש 6)",
+   "learn": "מה משפיע על מהירות ועלות הסקה: קוונטיזציה, גודל מודל, batching ומטמון. על CPU בלבד תמדוד קוונטיזציה ומטמון סמנטי, ותקרא על vLLM (דורש GPU) כדי להבין serving יעיל.",
+   "days": [
+    "מפגש 6, שעה ראשונה: קרא את README הקוונטיזציה של llama.cpp ואת סקירת הקוונטיזציה של Hugging Face. רשום מה ההבדל בין Q4 ל-Q8 מבחינת זיכרון, מהירות ואיכות.",
+    "מפגש 6, שעה שנייה: הרץ את אותו מודל ב-Ollama בשתי רמות קוונטיזציה, מדוד tokens לשנייה וזיכרון, והרץ עליהן את 30 השאלות של פרויקט 3. השווה איכות לפי הבדיקה מנושא 6.",
+    "מפגש 6, שעה שלישית: מטמון סמנטי. משוך כ-500 כותרות שאלות אמיתיות מ-Stack Exchange API (אתר datascience) כזרם שאילתות, והטמע כל אחת עם אותו מודל. אם דמיון הקוסינוס לשאילתה שכבר נענתה עולה על סף, החזר תשובה שמורה. מדוד hit-rate בספים 0.80, 0.85 ו-0.90."
+   ],
+   "res": [
+    {
+     "t": "llama.cpp: quantize",
+     "u": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md"
+    },
+    {
+     "t": "llama.cpp",
+     "u": "https://github.com/ggml-org/llama.cpp"
+    },
+    {
+     "t": "Ollama",
+     "u": "https://ollama.com/"
+    },
+    {
+     "t": "Hugging Face: סקירת קוונטיזציה",
+     "u": "https://huggingface.co/docs/transformers/main/en/quantization/overview"
+    },
+    {
+     "t": "vLLM (קריאה)",
+     "u": "https://docs.vllm.ai/en/latest/"
+    },
+    {
+     "t": "Stack Exchange API",
+     "u": "https://api.stackexchange.com/docs"
+    }
+   ],
+   "proj": {
+    "name": "מעבדת עלות: קוונטיזציה ומטמון סמנטי למודל מקומי",
+    "data": "כותרות שאלות אמיתיות מ-Stack Exchange API (אתר datascience.stackexchange.com), וקובץ 30 השאלות שלך.",
+    "build": "טבלת השוואה של שתי רמות קוונטיזציה (זיכרון, tokens לשנייה, ציון על 30 שאלות), ושכבת מטמון סמנטי לשירות ה-RAG עם עקומת hit-rate לפי סף.",
+    "out": "דוח של עמוד אחד עם שתי טבלאות והמלצה: איזו קוונטיזציה ואיזה סף מטמון.",
+    "proof": "מוכיח שאתה מעריך אופטימיזציה לפי מדידה ולא לפי הרגשה. אזהרה שתכתוב בדוח: hit-rate גבוה אינו הוכחה שהתשובה השמורה נכונה לשאילתה החדשה, ולכן הסף נבחר מול דגימה בדוקה ידנית."
+   }
+  },
+  {
+   "id": 8,
+   "week": 4,
+   "title": "תיק עבודות ופרויקטים אמיתיים",
+   "hours": "8 שעות (מפגשים 1-4 וארבע שעות ממפגש 6)",
+   "learn": "פרויקט מסכם אחד שמחבר את כל הקודמים, ונראה לקורא תוך חמש דקות: README חד, תרשים ארכיטקטורה, תוצאות מדודות והרצה בפקודה אחת.",
+   "days": [
+    "מפגש 1 (שעה): איחוד במאגר ai-research-radar: תיקיות gateway, search, rag, agent, mlops, eval. docker-compose אחד שמרים את השער, Qdrant המקומי והשירותים.",
+    "מפגש 2 (שעה): פקודת make demo שמריצה מקצה לקצה: משיכת נתונים, אינדקס, שאלה לדוגמה, תדריך סוכן. תקן את כל מה שנשבר באיחוד.",
+    "מפגש 3 (שעה): CI למאגר המאוחד (lint, בדיקות, בניית תמונות, make eval עם סף: אם hit-rate יורד מתחת לסף ה-build נכשל).",
+    "מפגש 4 (שעה): README: בעיה, ארכיטקטורה כתרשים mermaid (GitHub מציג אותו), טבלת תוצאות אמיתיות מכל נושא, מגבלות ידועות, והוראות הרצה.",
+    "מפגש 6, ארבע שעות: דף GitHub Pages ציבורי קצר (שימוש ב-Pages) עם הממצאים: טבלאות המדידה, תדריך לדוגמה שהסוכן הפיק, ותיאור של הכשל המעניין ביותר שמצאת ומה תיקנת. תיאור קצר של כל פרויקט (שלושה משפטים) לפרופיל הציבורי."
+   ],
+   "res": [
+    {
+     "t": "GitHub Pages",
+     "u": "https://pages.github.com/"
+    },
+    {
+     "t": "תרשימי mermaid ב-GitHub",
+     "u": "https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams"
+    },
+    {
+     "t": "Docker Compose",
+     "u": "https://docs.docker.com/compose/"
+    },
+    {
+     "t": "GitHub Actions",
+     "u": "https://docs.github.com/en/actions"
+    }
+   ],
+   "proj": {
+    "name": "ai-research-radar: מערכת מחקר מקצה לקצה על נתוני אמת",
+    "data": "כל מקורות הפרויקטים הקודמים: arXiv, Federal Register, Hacker News, NYC TLC ו-Stack Exchange.",
+    "build": "מאגר יחיד שעושה: שער נתונים, חיפוש סמנטי, RAG מצוטט, סוכן תדריך, אריזה ו-CI, חבילת הערכה, ומטמון עם מודל מקומי מקוונטז.",
+    "out": "מאגר ציבורי, דף Pages עם התוצאות, ופקודת make demo שמריצה הכול.",
+    "proof": "זה הרעיון של הנושא: מי שמגיע למאגר רואה בדקה אחת מה נבנה, מדדים אמיתיים, ושהכול רץ אצלו. אין כאן לקוח אמיתי או נפח פרודקשן, ואין לטעון שיש. מה שמוצג הוא מה שנמדד."
+   }
+  },
+  {
+   "id": 9,
+   "week": 4,
+   "title": "למידה מתמשכת והתמחות",
+   "hours": "2 שעות (מפגש 5 ושעה ממפגש 6)",
+   "learn": "לא רשימת קריאה, אלא מערכת שרצה לבד: מקורות קבועים, חלון שבועי קבוע, ויומן שמחייב אותך לבנות ולא רק לקרוא.",
+   "days": [
+    "מפגש 5 (שעה): חבר קורא RSS חינמי כלשהו לשלושה מקורות: הזרם היומי של arXiv cs.AI (rss.arxiv.org), הבלוג של Simon Willison (atom) והפודקאסט והניוזלטר Latent Space. הוסף את Hugging Face Daily Papers כרשימה לבדיקה פעם בשבוע.",
+    "מפגש 6, שעה אחרונה: הפוך את סוכן התדריך מנושא 4 לאוטומטי: GitHub Actions עם schedule שמריץ אותו כל שבוע ושומר את התדריך כקובץ במאגר. בחר התמחות אחת ל-90 הימים הבאים (ראה למטה), וכתוב ב-LOG.md את הפרויקט הבא שלה."
+   ],
+   "res": [
+    {
+     "t": "Hugging Face Daily Papers",
+     "u": "https://huggingface.co/papers"
+    },
+    {
+     "t": "arXiv cs.AI (RSS)",
+     "u": "https://rss.arxiv.org/rss/cs.AI"
+    },
+    {
+     "t": "Simon Willison (Atom)",
+     "u": "https://simonwillison.net/atom/everything/"
+    },
+    {
+     "t": "Latent Space (feed)",
+     "u": "https://www.latent.space/feed"
+    },
+    {
+     "t": "GitHub Actions: אירועים ו-schedule",
+     "u": "https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows"
+    },
+    {
+     "t": "Kaggle Learn",
+     "u": "https://www.kaggle.com/learn"
+    }
+   ],
+   "proj": {
+    "name": "תדריך שבועי אוטומטי + תוכנית התמחות ל-90 יום",
+    "data": "הזרמים שלמעלה, בנוסף לשלושת מקורות הסוכן מנושא 4.",
+    "build": "GitHub Action שבועית שמפיקה תדריך Markdown במאגר, וקובץ SPECIALIZATION.md עם שאלה אחת שאתה רוצה לענות עליה ב-90 יום.",
+    "out": "תדריך ראשון שנוצר אוטומטית ועמוד התמחות עם בחירה ונימוק.",
+    "proof": "הכלל שמחזיק: שעה אחת קבועה בשבוע לקריאה, ופרויקט קטן אחד בחודש בנושא אחד שהקריאה העלתה. אם לא נבנה דבר החודש, חוזרים לנושא הקודם. בחירת התמחות שמתאימה למי שמוביל צוות BI: הערכה ו-RAG על נתונים ארגוניים, או סוכנים מעל מחסן נתונים. כל אחת מהן מתחילה ממה שכבר בנית כאן."
+   }
+  }
+ ]
+}
