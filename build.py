@@ -13,7 +13,8 @@ extra = """
 .ver{background:#5fbf8a14;border:1px solid #2f6f4a;border-radius:10px;padding:10px 14px;margin:8px 0 14px;font-size:.9rem;line-height:1.65}
 .tb{overflow-x:auto}.tb table{border-collapse:collapse;width:100%;font-size:.9rem}.tb th,.tb td{border:1px solid #24282f;padding:8px 10px;text-align:right;vertical-align:top}.tb th{background:#111317}
 .sm{color:#9aa0a8;font-size:.85rem}
-.card p{line-height:1.75}.ch details summary{cursor:pointer;color:#9aa0a8;font-size:.9rem;margin-top:14px}
+.card p{line-height:1.75}
+@media(max-width:700px){.tb table{min-width:0}.tb table,.tb tbody,.tb tr,.tb td{display:block;width:100%}.tb tr:first-child{display:none}.tb tr{border:1px solid #24282f;border-radius:12px;margin:10px 0;padding:6px 10px}.tb td{border:0;padding:6px 0}.tb td:before{content:attr(data-l) ": ";color:#F7931A;font-weight:600}}.ch details summary{cursor:pointer;color:#9aa0a8;font-size:.9rem;margin-top:14px}
 """
 pre = pre.replace('</style>', extra + '</style>')
 _C = json.load(open('content.json'))
@@ -32,7 +33,7 @@ def block(b):
     if k == 'ul': return '<ul>' + ''.join(f'<li>{e(x)}</li>' for x in t) + '</ul>'
     if k == 'tbl':
         h = ''.join(f'<th>{e(c)}</th>' for c in t[0])
-        r = ''.join('<tr>' + ''.join(f'<td>{e(c)}</td>' for c in row) + '</tr>' for row in t[1:])
+        r = ''.join('<tr>' + ''.join(f'<td data-l="{e(t[0][i])}">{e(c)}</td>' for i, c in enumerate(row)) + '</tr>' for row in t[1:])
         return f'<div class="tb"><table><tr>{h}</tr>{r}</table></div>'
     if k == 'note': return f'<div class="nt">{e(t)}</div>'
     raise ValueError(k)
