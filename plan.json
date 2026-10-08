@@ -446,5 +446,65 @@
     "proof": "הכלל שמחזיק: שעה אחת קבועה בשבוע לקריאה, ופרויקט קטן אחד בחודש בנושא אחד שהקריאה העלתה. אם לא נבנה דבר החודש, חוזרים לנושא הקודם. בחירת התמחות שמתאימה למי שמוביל צוות BI: הערכה ו-RAG על נתונים ארגוניים, או סוכנים מעל מחסן נתונים. כל אחת מהן מתחילה ממה שכבר בנית כאן."
    }
   }
- ]
+ ],
+ "guide": {
+  "title": "מדריך: בונים שרת MCP ראשון ב-Python (45 דקות)",
+  "where": "משתלב בנושא 4 (מפגש 4 בשבוע 2). אפשר לעשות אותו לפני בניית שרת ה-MCP של הפרויקט.",
+  "what": "MCP (Model Context Protocol) הוא פרוטוקול פתוח שבו אפליקציה עם מודל (הלקוח) מתחברת לשרת קטן שחושף לה כלים (פונקציות שהמודל יכול להפעיל), משאבים (נתונים לקריאה) ופרומפטים. אתה כותב את השרת פעם אחת, וכל לקוח שתומך בפרוטוקול יכול להשתמש בו. השרת שלמטה הוא תהליך מקומי שמדבר עם הלקוח דרך stdin ו-stdout (stdio), בלי פורט ובלי רשת.",
+  "steps": [
+   {
+    "h": "1. התקנה",
+    "p": "צור תיקייה והתקן את ה-SDK הרשמי. הגרסה הנוכחית בזמן הבדיקה היא mcp 2.3.0, ובה המחלקה נקראת MCPServer. בדוגמאות ישנות (ובחלק מהמדריכים) תראה FastMCP מ-mcp.server.fastmcp: זה של גרסה 1. אם אתה מעתיק קוד כזה, הצמד את החבילה ל-mcp<2.",
+    "code": "uv init arxiv-mcp\ncd arxiv-mcp\nuv add \"mcp[cli]\" httpx"
+   },
+   {
+    "h": "2. כותבים את השרת",
+    "p": "שמור כ-server.py. כל פונקציה עם @mcp.tool() הופכת לכלי: סוגי הפרמטרים הם הסכמה, וה-docstring הוא התיאור שהמודל קורא כדי להחליט מתי להפעיל אותו, ולכן כתוב אותו כמו הוראה. הכלי כאן מחפש מאמרים ב-arXiv (בלי מפתח, ובקצב סביר: ראה את מגבלת שלוש השניות בפרויקט 1).",
+    "code": "import logging\nimport xml.etree.ElementTree as ET\n\nimport httpx\nfrom mcp.server import MCPServer\n\nlogging.basicConfig(level=logging.INFO)  # logging goes to stderr, safe for stdio\nmcp = MCPServer(\"arxiv-search\")\n\nATOM = \"{http://www.w3.org/2005/Atom}\"\n\n\n@mcp.tool()\ndef search_arxiv(query: str, max_results: int = 5) -> str:\n    \"\"\"Search arXiv papers by keyword. Returns title, date, link and a short summary for each paper.\"\"\"\n    max_results = max(1, min(max_results, 10))\n    resp = httpx.get(\n        \"https://export.arxiv.org/api/query\",\n        params={\"search_query\": \" AND \".join(f\"all:{w}\" for w in query.split()), \"max_results\": max_results,\n                \"sortBy\": \"submittedDate\", \"sortOrder\": \"descending\"},\n        timeout=20,\n        follow_redirects=True,\n    )\n    resp.raise_for_status()\n    out = []\n    for entry in ET.fromstring(resp.text).findall(f\"{ATOM}entry\"):\n        title = \" \".join(entry.findtext(f\"{ATOM}title\", \"\").split())\n        summary = \" \".join(entry.findtext(f\"{ATOM}summary\", \"\").split())[:300]\n        out.append(f\"{title} ({entry.findtext(f'{ATOM}published', '')[:10]})\\n\"\n                   f\"{entry.findtext(f'{ATOM}id', '')}\\n{summary}\")\n    return \"\\n\\n\".join(out) or \"No results.\"\n\n\nif __name__ == \"__main__\":\n    mcp.run()\n"
+   },
+   {
+    "h": "3. כלל אחד שאסור לשבור",
+    "p": "בשרת stdio לעולם אל תדפיס ב-print: stdout הוא ערוץ הפרוטוקול, וכל טקסט נוסף שובר אותו. כתוב ללוג דרך מודול logging (הוא כותב ל-stderr). זה נכון גם כשהשרת נראה תקין בהרצה ידנית וקורס בתוך לקוח.",
+    "code": ""
+   },
+   {
+    "h": "4. בודקים בלי שום מודל",
+    "p": "בדיקה ראשונה: Inspector הרשמי. הפקודה פותחת ממשק בדפדפן שבו רואים את הכלים וקוראים להם ידנית. בדיקה שנייה, שמתאימה ל-CI: לקוח Python מהאותו SDK שמפעיל את השרת כתהליך ומפעיל את הכלי.",
+    "code": "uv run mcp dev server.py\n\n# test_client.py (הרץ: uv run python test_client.py)\nimport asyncio\nfrom mcp import Client, StdioServerParameters\n\nparams = StdioServerParameters(command=\"python\", args=[\"server.py\"])\n\nasync def main():\n    async with Client(params) as client:\n        tools = await client.list_tools()\n        print([t.name for t in tools.tools])\n        result = await client.call_tool(\"search_arxiv\", {\"query\": \"agent evaluation\", \"max_results\": 2})\n        print(result.content[0].text[:400])\n\nasyncio.run(main())\n"
+   },
+   {
+    "h": "5. חיבור ל-Claude Code",
+    "p": "Claude Code מוסיף שרת stdio מקומי בפקודה אחת (התחביר לפי תיעוד Claude Code). הנתיב חייב להיות מוחלט, והפקודה אחרי -- היא מה שמורץ. אחרי ההוספה מפעילים את Claude Code ושואלים אותו לחפש מאמרים: הוא יקרא ל-search_arxiv.",
+    "code": "claude mcp add --transport stdio arxiv -- uv --directory /ABSOLUTE/PATH/arxiv-mcp run server.py\nclaude mcp list"
+   },
+   {
+    "h": "6. חיבור ל-Claude Desktop (אם זמין לך)",
+    "p": "מוסיפים את השרת לקובץ claude_desktop_config.json תחת mcpServers (macOS: ~/Library/Application Support/Claude/, Windows: %AppData%\\Claude\\), ומפעילים מחדש את האפליקציה. ייתכן שצריך נתיב מלא ל-uv (which uv או where uv).",
+    "code": "{\n  \"mcpServers\": {\n    \"arxiv\": {\n      \"command\": \"uv\",\n      \"args\": [\"--directory\", \"/ABSOLUTE/PATH/arxiv-mcp\", \"run\", \"server.py\"]\n    }\n  }\n}"
+   },
+   {
+    "h": "7. מה מתאים לרישיון המוגבל שלך",
+    "p": "הרישיון בארגון שלך: Claude Chat ו-Claude Code בלבד, בלי connectors ובלי plugins. אז: (א) הלקוח של Python מסעיף 4 והסוכן שלך מנושא 4 עובדים מול השרת ישירות, בלי תלות ברישיון בכלל, וזה הנתיב הבטוח לתרגול. (ב) Claude Code עם claude mcp add הוא ההגדרה המקומית של הכלי עצמו ולא connector מהספרייה של Anthropic, אז הוא הנתיב הסביר לשימוש עם Claude, אבל לא נבדק מול מדיניות הארגון שלך: אם מנהל החשבון חוסם שרתי MCP, הפקודה לא תעזור. בדוק זאת פעם אחת לפני שתסתמך עליו. (ג) Claude Desktop ו-connectors של claude.ai כנראה לא מתאימים לרישיון הזה, ואל תבנה עליהם.",
+    "code": ""
+   }
+  ],
+  "res": [
+   {
+    "t": "MCP: מבוא",
+    "u": "https://modelcontextprotocol.io/docs/getting-started/intro"
+   },
+   {
+    "t": "MCP: בניית שרת (מדריך רשמי)",
+    "u": "https://modelcontextprotocol.io/docs/develop/build-server"
+   },
+   {
+    "t": "MCP Python SDK",
+    "u": "https://github.com/modelcontextprotocol/python-sdk"
+   },
+   {
+    "t": "Claude Code: MCP",
+    "u": "https://docs.claude.com/en/docs/claude-code/mcp"
+   }
+  ]
+ }
 }
